@@ -7,6 +7,7 @@
 #git remote add origin https://github.com/l1m40/medals.git
 #git branch -M main
 #git push -u origin main
+#
 
 # Installs pacman ("package manager") if needed
 if (!require("pacman")) install.packages("pacman")
