@@ -7,7 +7,7 @@ A participação do Brasil na história dos Jogos Olímpicos é marcada por um c
 
 <br />
 <div align="center">
-    <img src="output/vegetarianproteinlist_proteins.png" alt="plot" width="600" height="600">
+    <img src="output/year_medals.png" alt="plot">
   Visualização feita com os dados da wikipedia em 
     <a href="https://pt.wikipedia.org/wiki/Lista_de_medalhas_brasileiras_nos_Jogos_Ol%C3%ADmpicos">
       https://pt.wikipedia.org/wiki/Lista_de_medalhas_brasileiras_nos_Jogos_Ol%C3%ADmpicos
@@ -19,7 +19,7 @@ Entre os destaques da trajetória brasileira, o atleta Adhemar Ferreira da Silva
 
 <br />
 <div align="center">
-    <img src="output/vegetarianproteinlist_proteins.png" alt="plot" width="600" height="600">
+    <img src="output/athletes_medals.png" alt="plot">
 </div>
 <br />
 
