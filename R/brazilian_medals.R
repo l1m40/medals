@@ -119,15 +119,16 @@ plot_medals_per_year <- function(df=read_table_medals_per_year_df()){
     theme_void()+theme(plot.background=element_rect(fill="gray13",colour="gray13"),legend.position="none")
 }
 
-plot_athlete_medals_per_year <- function(df=read_table_medals_per_athlete_df(),max_input=NULL,text_size=5){
+plot_athlete_medals_per_year <- function(df=read_table_medals_per_athlete_df(),medals_per_year_df=read_table_medals_per_year_df(),max_input=NULL,text_size=5,sport_input="vela",title_on=T){
   if(is.null(max_input)) max_input=medals_year_sport_max(df)
   if(text_size<5) { df$medalha_nome <- df$medalha_nome_8 
            } else { df$medalha_nome <- df$medalha_nome_13 }
-  df %>% 
-    # left_join(df %>% mutate(Ano=as.character(Ano)) %>% select(Ano,`Colocação`,rank),by="Ano") %>% 
-    group_by(year,medalha_factor,Ano,Medalha,Esporte,medalha_nome) %>% summarise(N=n()) %>% #filter(Esporte=="voleibol") %>% 
-    mutate(N=ifelse(is.na(Medalha),0,N)) %>% 
-    arrange(year,desc(medalha_factor)) %>% 
+  plot <- df %>%
+    filter(Esporte==sport_input) %>% 
+    full_join(medals_per_year_df %>% mutate(Ano=as.character(Ano)) %>% distinct(Ano),by="Ano") %>%
+    group_by(year,medalha_factor,Ano,Medalha,Esporte,medalha_nome) %>% summarise(N=n(),.groups="keep") %>%
+    # tail(10)
+    arrange(year,desc(medalha_factor)) %>% mutate(N=ifelse(is.na(Medalha),0,N)) %>% mutate(Esporte=sport_input) %>%
     ggplot(aes(y=Ano))+xlim((-.6),max_input)+
     geom_text(aes(x=(-.6),label=Ano),size=text_size+1,color="dodgerblue",hjust=0)+
     geom_col(aes(x=N,fill=medalha_factor),position="stack")+
@@ -137,6 +138,15 @@ plot_athlete_medals_per_year <- function(df=read_table_medals_per_athlete_df(),m
     # facet_grid(cols=vars(Esporte))+
     theme_void()+
     theme(plot.background=element_rect(fill="gray13",colour="gray13"),legend.position="none")#+theme(strip.text.x=element_text(colour='white',face="bold",size=19))
+  if(!is.null(title_on))                 plot <- plot+facet_grid(cols=vars(Esporte))+theme(strip.text.x=element_text(colour='white',face="bold",size=19))
+  if(sport_input=="tiro esportivo")      plot <- plot+annotate(geom="text",y=("1912"),x=max_input,size=5,color="white",hjust=1,vjust=1,label="* 3 primeiras medalhas do Brasil\nforam no tiro esportivo")
+  if(sport_input=="atletismo")           plot <- plot+annotate(geom="text",y=("1956"),x=max_input,size=5,color="white",hjust=1,vjust=0,label="* 2 ouros seguidos de Adhemar\nno salto triplo")
+  if(sport_input=="atletismo")           plot <- plot+annotate(geom="text",y=("2004"),x=max_input,size=3,color="white",hjust=1,vjust=1,label="* Wanderlei recebeu a Medalha Pierre de Coubertin\n pelo incidente do padre iralandês que o fez\nperder a medalha de ouro na maratona")
+  if(sport_input=="atletismo")           plot <- plot+annotate(geom="text",y=("2012"),x=0        ,size=3,color="white",hjust=0,vjust=1,label="* Maureen Maggi ouro no salto em distância\nassim como nos Jogos Pan-Americanos")
+  
+  if(sport_input=="voleibol")            plot <- plot+annotate(geom="text",y=("2016"),x=max_input,size=5,color="white",hjust=1,vjust=.5,label="* 4 ouros seguidos nas equipes\nmasculina e feminina")#\nBrasil é o país do volei?
+  if(sport_input=="voleibol")            plot <- plot+annotate(geom="text",y=("1992"),x=max_input,size=5,color="white",hjust=1,vjust=.5,label="* Ace do Marcelo Negrão\nno último ponto do 3x0 na Holanda")#\nBrasil é o país do volei?
+  plot
 }
 
 
@@ -157,25 +167,26 @@ if(F){
   athlete_medals_per_year_df %>% 
     filter(Esporte %in% c("vela","atletismo","judô","voleibol","natação")) %>% 
     mutate(Esporte=factor(Esporte,levels=c("vela","atletismo","judô","voleibol","natação"))) %>% 
-    plot_athlete_medals_per_year(max_medals,3)+facet_grid(cols=vars(Esporte))+theme(strip.text.x=element_text(colour='white',face="bold",size=19))
+    plot_athlete_medals_per_year(max_medals,3,c("vela","atletismo","judô","voleibol","natação"))+
+    facet_grid(cols=vars(Esporte))+theme(strip.text.x=element_text(colour='white',face="bold",size=19))
   
   athlete_medals_per_year_df %>% 
     filter(Esporte %in% c("vela","atletismo","judô","voleibol","natação")) %>% 
     mutate(Esporte=factor(Esporte,levels=rev(c("vela","atletismo","judô","voleibol","natação")))) %>% 
     mutate(Ano=year) %>%
-    plot_athlete_medals_per_year(max_medals,3)+
+    plot_athlete_medals_per_year(max_medals,3,c("vela","atletismo","judô","voleibol","natação"))+
     # scale_y_reverse()+
     facet_grid(cols=vars(Esporte))+theme(strip.text.x=element_text(colour='white',face="bold",size=19))
-  
-  
+
   athlete_medals_per_year_df %>% #filter(grepl("Santos",Atleta)) %>% select(Ano,Esporte,Atleta)
-    filter(Esporte %in% c("tiro esportivo")) %>%
+    # filter(Esporte %in% c("tiro esportivo")) %>%
     # filter(Esporte %in% c("ginástica artística")) %>%
-    # filter(Esporte %in% c("futebol")) %>% 
-    full_join(medals_per_year_df %>% mutate(Ano=as.character(Ano)) %>% distinct(Ano),by="Ano") %>% 
-    # group_by(year,medalha_factor,Ano,Medalha,Esporte,medalha_nome) %>% summarise(N=n()) %>% 
+    # filter(Esporte %in% c("voleibol")) %>%
+    # full_join(medals_per_year_df %>% mutate(Ano=as.character(Ano)) %>% distinct(Ano),by="Ano") %>% 
+    # group_by(year,medalha_factor,Ano,Medalha,Esporte,medalha_nome) %>% summarise(N=n()) %>%
     #head(20)
-    plot_athlete_medals_per_year(max_medals,3)
+    plot_athlete_medals_per_year(medals_per_year_df,max_medals,3,"voleibol")
+    # plot_athlete_medals_per_year(max_medals,3,unique(athlete_medals_per_year_df$Esporte))
   
   grid.arrange(
     plot_medals_per_year(df),

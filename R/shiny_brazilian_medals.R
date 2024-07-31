@@ -75,10 +75,15 @@ server <- function(input, output, session) {
   output$plot_athlete_medals_per_year <- renderPlot({
     cat(paste("sport_select_input",input$sport_select_input,"\n"))
     if(input$sport_select_input!=""){
-      athlete_medals_per_year_df %>% 
-        filter(Esporte %in% c(input$sport_select_input)) %>%
-        full_join(medals_per_year_df %>% mutate(Ano=as.character(Ano)) %>% distinct(Ano),by="Ano") %>% 
-        plot_athlete_medals_per_year(max_medals,4)
+      # athlete_medals_per_year_df %>% 
+      #   filter(Esporte %in% c(input$sport_select_input)) %>%
+      #   full_join(medals_per_year_df %>% mutate(Ano=as.character(Ano)) %>% distinct(Ano),by="Ano") %>% 
+      #   plot_athlete_medals_per_year(max_medals,4)
+      # athlete_medals_per_year_df %>% 
+      #   filter(Esporte %in% c(input$sport_select_input)) %>%
+      #   full_join(medals_per_year_df %>% mutate(Ano=as.character(Ano)) %>% distinct(Ano),by="Ano") %>% 
+      #   plot_athlete_medals_per_year(max_medals,4,unique(athlete_medals_per_year_df$Esporte))
+      plot_athlete_medals_per_year(athlete_medals_per_year_df,medals_per_year_df,max_medals,4,input$sport_select_input)
     } else { plot_blank() }
   })
   
