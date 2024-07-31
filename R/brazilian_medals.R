@@ -9,17 +9,7 @@ if (!require("pacman")) install.packages("pacman")
 
 # Use pacman to load add-on packages as desired
 # Packages I load every time; uses "pacman"
-pacman::p_load(pacman,tidyverse,rio,rvest,grid,gridExtra
-               #dplyr,rio,lubridate,
-               #ggplot2,grid,gridExtra,           #ggview, # grid.arrange
-               #glue,reshape2,tidyverse,  data.table,
-               #tidyquant,tseries,    foreach,doParallel
-               #,gt
-               #, GGally, ggthemes, 
-               #ggvis, httr, lubridate, plotly, rmarkdown, shiny, 
-               #stringr, tidyr
-               #,quantmod,PerformanceAnalytics,lubridate
-) 
+pacman::p_load(pacman,tidyverse,rvest,grid,gridExtra) 
 
 
 
@@ -51,98 +41,148 @@ olympic_cities <- list(
   "St. Louis" = "STL"
 )
 
-url="https://pt.wikipedia.org/wiki/Lista_de_medalhas_brasileiras_nos_Jogos_Ol%C3%ADmpicos"
-
-html <- url %>% read_html()
-
-# load medals per year
-df <- html %>% html_node(xpath='//*[@id="mw-content-text"]/div[1]/table[1]') %>% html_table() %>% as_tibble()
-
-# x %>% html_node(xpath='//*[@id="mw-content-text"]/div[1]/table[3]')
-# x %>% html_node(xpath='//*[@id="mw-content-text"]/div[1]/div[5]')
-
-df$ticker <- NA
-for(i in 1:nrow(df)) df$ticker[i]=olympic_cities[[df$Local[i]]]
-
-# transform variables
-df <- df %>% 
-  mutate(Ouro=as.integer(Ouro),Prata=as.integer(Prata),Bronze=as.integer(Bronze),Total=as.integer(Total)) %>% 
-  mutate(rank=as.integer(str_remove(`Colocação`,"º"))) %>% 
-  mutate(year=factor(Ano)) %>% 
-  ungroup()
-
-# load athletes medals
-athlete_medals_per_year_df <- NULL
-for(i in 4:23){
-  athlete_medals_per_year_df <- athlete_medals_per_year_df %>% 
-    rbind(
-      html %>% html_node(xpath=paste0('//*[@id="mw-content-text"]/div[1]/table[',i-1,']')) %>% html_table() %>% as_tibble() %>% 
-        mutate(event_name=(html %>% html_node(xpath=paste0('//*[@id="mw-content-text"]/div[1]/div[',i,']')) %>% html_elements("a") %>% html_attr("title"))[1]) %>% 
-        mutate(Local=strsplit(as.character(event_name), " (?=[0-9]{4}$)", perl=TRUE)[[1]][1]) %>% 
-        mutate(  Ano=strsplit(as.character(event_name), " (?=[0-9]{4}$)", perl=TRUE)[[1]][2]) %>% 
-        mutate(year=factor(Ano))
-    )
+rvest_wiki_html <- function(){
+  url="https://pt.wikipedia.org/wiki/Lista_de_medalhas_brasileiras_nos_Jogos_Ol%C3%ADmpicos"
+  cat(paste("Reading from",url,"\n"))
+  return(url %>% read_html())
 }
 
+read_table_medals_per_year_df <- function(html=rvest_wiki_html()){
+  # load medals per year
+  df <- html %>% html_node(xpath='//*[@id="mw-content-text"]/div[1]/table[1]') %>% html_table() %>% as_tibble()
+  # setup city ticker
+  df$ticker <- NA
+  for(i in 1:nrow(df)) df$ticker[i]=olympic_cities[[df$Local[i]]]
+  # transform medals per year variables
+  df <- df %>% 
+    mutate(Ouro=as.integer(Ouro),Prata=as.integer(Prata),Bronze=as.integer(Bronze),Total=as.integer(Total)) %>% 
+    mutate(rank=as.integer(str_remove(`Colocação`,"º"))) %>% 
+    mutate(year=factor(Ano)) %>% 
+    ungroup()
+  return(df)
+}
+
+read_table_medals_per_athlete_df <- function(html=rvest_wiki_html()){# load athletes medals
+  athlete_medals_per_year_df <- NULL
+  for(i in 4:24){
+    athlete_medals_per_year_df <- athlete_medals_per_year_df %>% 
+      rbind(
+        html %>% html_node(xpath=paste0('//*[@id="mw-content-text"]/div[1]/table[',i-1,']')) %>% html_table() %>% as_tibble() %>% 
+          mutate(event_name=(html %>% html_node(xpath=paste0('//*[@id="mw-content-text"]/div[1]/div[',i,']')) %>% html_elements("a") %>% html_attr("title"))[1]) %>% 
+          mutate(Local=strsplit(as.character(event_name), " (?=[0-9]{4}$)", perl=TRUE)[[1]][1]) %>% 
+          mutate(  Ano=strsplit(as.character(event_name), " (?=[0-9]{4}$)", perl=TRUE)[[1]][2]) %>% 
+          mutate(year=factor(Ano))
+      )
+  }
+  # transform athletes medals
+  athlete_medals_per_year_df <- athlete_medals_per_year_df %>% 
+    mutate(medalha_factor=factor(Medalha,levels=c("bronze","prata","ouro"))) %>% 
+    mutate(medalha_nome=ifelse(nchar(Atleta)>30,Modalidade,Atleta)) %>% 
+    mutate(nchar=as.integer(nchar(medalha_nome)*1.25/2))
+  athlete_medals_per_year_df$medalha_nome_8  <- NA
+  athlete_medals_per_year_df$medalha_nome_13 <- NA
+  for(r in 1:nrow(athlete_medals_per_year_df)){ # wrap strings
+    athlete_medals_per_year_df[r,]$medalha_nome_8 =ifelse(athlete_medals_per_year_df[r,]$nchar<8 ,athlete_medals_per_year_df[r,]$medalha_nome,paste(strwrap(athlete_medals_per_year_df[r,]$medalha_nome,width=athlete_medals_per_year_df[r,]$nchar), collapse="\n"))
+    athlete_medals_per_year_df[r,]$medalha_nome_13=ifelse(athlete_medals_per_year_df[r,]$nchar<13,athlete_medals_per_year_df[r,]$medalha_nome,paste(strwrap(athlete_medals_per_year_df[r,]$medalha_nome,width=athlete_medals_per_year_df[r,]$nchar), collapse="\n"))
+  }
+  return(athlete_medals_per_year_df)
+}
+medals_year_sport_max <- function(df){ return(max((df %>% group_by(Ano,Esporte) %>% summarise(N=n(),.groups="keep"))$N)) }
 
 
-plot_medals_per_year <- function(df){
+
+plot_medals_per_year <- function(df=read_table_medals_per_year_df()){
   df %>% 
     mutate(text_color=as.integer(ifelse(`Colocação`=="NP",max(rank,na.rm=T)+10,ifelse(`Colocação`=="SC",max(rank,na.rm=T),rank)))) %>% 
     mutate(text_color=ifelse(text_color<quantile(text_color,.1,na.rm=T),1,text_color)) %>% 
     ggplot(aes(y=year))+
-    geom_text(aes(x=(-.5),color=-text_color,fontface="bold",size=6,label=paste(`Colocação`,ticker,Ano)),hjust=1)+xlim((-7),max(as.integer(df$Total),na.rm=T)+1)+
+    geom_text(aes(x=(-.5),color=-text_color,fontface="bold",size=6,label=paste(`Colocação`,ticker,Ano)),hjust=1)+xlim((-10),max(as.integer(df$Total),na.rm=T)+1)+
     geom_col(aes(x=Prata+Ouro+Bronze),fill="sienna3")+
     geom_col(aes(x=Prata+Ouro),fill="gray")+
     geom_col(aes(x=Ouro),fill="gold")+
+    geom_text(aes(x=Ouro+Prata+Bronze ,label=ifelse(as.integer(Ano)>=1996 & Bronze>0,Bronze,"")),hjust=1.5,size=3)+
+    geom_text(aes(x=Ouro+Prata        ,label=ifelse(as.integer(Ano)>=1996 & Prata >0,Prata ,"")),hjust=1.5,size=3)+
+    geom_text(aes(x=Ouro              ,label=ifelse(as.integer(Ano)>=1996 & Ouro  >0,Ouro  ,"")),hjust=1.5,size=3)+
     annotate(geom="text",y=factor(1920),x=4,size=3,color="white",hjust=0,label="3 medalhas no tiro esportivo")+
     annotate(geom="text",y=factor(1948),x=2,size=3,color="white",hjust=0,label="basquete")+
     annotate(geom="text",y=factor(1952),x=4,size=3,color="white",hjust=0,label="atletismo e natação")+
-    annotate(geom="text",y=factor(1956),x=2,size=3,color="white",hjust=0,label="bicampeonato de Adhemar no salto triplo")+
+    annotate(geom="text",y=factor(1956),x=2,size=3,color="white",hjust=0,label="bicampeonato de Adhemar \nno salto triplo")+
     annotate(geom="text",y=factor(1960),x=3,size=3,color="white",hjust=0,label="atletismo e natação")+
     annotate(geom="text",y=factor(1964),x=2,size=3,color="white",hjust=0,label="basquete")+
     annotate(geom="text",y=factor(1968),x=4,size=3,color="white",hjust=0,label="atletismo, vela e boxe")+
     annotate(geom="text",y=factor(1972),x=3,size=3,color="white",hjust=0,label="atletismo e judô")+
     annotate(geom="text",y=factor(1976),x=3,size=3,color="white",hjust=0,label="atletismo e vela")+
-    annotate(geom="text",y=factor(1980),x=5,size=3,color="white",hjust=0,label="2 ouros na vela, atletismo e natação")+
-    annotate(geom="text",y=factor(1984),x=9,size=3,color="white",hjust=0,label="atletismo,vela,natação,judô,futebol,volei")+
-    annotate(geom="text",y=factor(1988),x=7,size=3,color="white",hjust=0,label="ouro do Aurelio no judô,atletismo,futebol,vela")+
-    annotate(geom="text",y=factor(1992),x=4,size=3,color="white",hjust=0,label="ouro do Rogério no judô,ouro no volei, prata na natação")+
+    annotate(geom="text",y=factor(1980),x=5,size=3,color="white",hjust=0,label="2 ouros na vela, \natletismo e natação")+
+    annotate(geom="text",y=factor(1984),x=9,size=3,color="white",hjust=0,label="atletismo, vela, natação, \njudô, futebol, volei")+
+    annotate(geom="text",y=factor(1988),x=7,size=3,color="white",hjust=0,label="ouro do Aurelio no judô,\natletismo, futebol, vela")+
+    annotate(geom="text",y=factor(1992),x=4,size=3,color="white",hjust=0,label="ouro do Rogério no judô, \nouro no volei, prata na natação")+
     theme_void()+theme(plot.background=element_rect(fill="gray13",colour="gray13"),legend.position="none")
 }
 
-plot_athlete_medals_per_year <- function(athlete_medals_per_year_df){
-  athlete_medals_per_year_df <- athlete_medals_per_year_df %>% 
-    mutate(Atleta=ifelse(nchar(Atleta)>30,Modalidade,Atleta)) %>% 
-    mutate(nchar=as.integer(nchar(Atleta)*1.25/2))
-  for(r in 1:nrow(athlete_medals_per_year_df)){ # wrap strings
-    athlete_medals_per_year_df[r,]$Atleta=
-      ifelse(athlete_medals_per_year_df[r,]$nchar<8,athlete_medals_per_year_df[r,]$Atleta,
-             paste(strwrap(athlete_medals_per_year_df[r,]$Atleta,width=athlete_medals_per_year_df[r,]$nchar), collapse="\n"))
-  }
-  athlete_medals_per_year_df %>% 
-    left_join(df %>% mutate(Ano=as.character(Ano)) %>% select(Ano,`Colocação`,rank),by="Ano") %>% 
-    filter(Esporte %in% c("vela","atletismo","judô","voleibol","natação")) %>% 
-    mutate(Esporte=factor(Esporte,levels=c("vela","atletismo","judô","voleibol","natação"))) %>% 
-    mutate(medalha_factor=factor(Medalha,levels=c("bronze","prata","ouro"))) %>% 
-    group_by(year,medalha_factor,Ano,Medalha,Esporte,Atleta) %>% summarise(N=n()) %>% #filter(Esporte=="voleibol") %>% 
+plot_athlete_medals_per_year <- function(df=read_table_medals_per_athlete_df(),max_input=NULL,text_size=5){
+  if(is.null(max_input)) max_input=medals_year_sport_max(df)
+  if(text_size<5) { df$medalha_nome <- df$medalha_nome_8 
+           } else { df$medalha_nome <- df$medalha_nome_13 }
+  df %>% 
+    # left_join(df %>% mutate(Ano=as.character(Ano)) %>% select(Ano,`Colocação`,rank),by="Ano") %>% 
+    group_by(year,medalha_factor,Ano,Medalha,Esporte,medalha_nome) %>% summarise(N=n()) %>% #filter(Esporte=="voleibol") %>% 
+    mutate(N=ifelse(is.na(Medalha),0,N)) %>% 
     arrange(year,desc(medalha_factor)) %>% 
-    ggplot(aes(y=Ano))+ 
-    geom_text(aes(x=(-.5),label=Ano),size=3,color="dodgerblue",hjust=0)+
+    ggplot(aes(y=Ano))+xlim((-.6),max_input)+
+    geom_text(aes(x=(-.6),label=Ano),size=text_size+1,color="dodgerblue",hjust=0)+
     geom_col(aes(x=N,fill=medalha_factor),position="stack")+
-    geom_text(aes(x=N,label=Atleta),position="stack",hjust=1.05,size=2)+
+    geom_text(aes(x=N,label=medalha_nome),position="stack",hjust=1.05,size=text_size-1)+
+    # geom_text(aes(x=N,label=medalha_nome),position="stack",hjust=1)+
     scale_fill_manual(values=c("ouro"="gold","prata"="gray","bronze"="sienna3"))+
-    facet_grid(cols=vars(Esporte))+
-    theme_void()+theme(plot.background=element_rect(fill="gray13",colour="gray13"),legend.position="none")+
-    theme(strip.text.x=element_text(colour='white',face="bold",size=19))
+    # facet_grid(cols=vars(Esporte))+
+    theme_void()+
+    theme(plot.background=element_rect(fill="gray13",colour="gray13"),legend.position="none")#+theme(strip.text.x=element_text(colour='white',face="bold",size=19))
 }
 
 
-grid.arrange(
-  plot_medals_per_year(df),
-  plot_athlete_medals_per_year(athlete_medals_per_year_df),
-  widths=c(1,4)
-)
+if(F){
+  
+  source("R/brazilian_medals.R")
+  
+  
+  html <- rvest_wiki_html()
+  medals_per_year_df <- read_table_medals_per_year_df(html)
+  athlete_medals_per_year_df <- read_table_medals_per_athlete_df(html)
+  sport_list <- unique(athlete_medals_per_year_df$Esporte)
+  max_medals <- medals_year_sport_max(athlete_medals_per_year_df)
+  
+  
+  plot_medals_per_year(medals_per_year_df)
+  
+  athlete_medals_per_year_df %>% 
+    filter(Esporte %in% c("vela","atletismo","judô","voleibol","natação")) %>% 
+    mutate(Esporte=factor(Esporte,levels=c("vela","atletismo","judô","voleibol","natação"))) %>% 
+    plot_athlete_medals_per_year(max_medals,3)+facet_grid(cols=vars(Esporte))+theme(strip.text.x=element_text(colour='white',face="bold",size=19))
+  
+  athlete_medals_per_year_df %>% 
+    filter(Esporte %in% c("vela","atletismo","judô","voleibol","natação")) %>% 
+    mutate(Esporte=factor(Esporte,levels=rev(c("vela","atletismo","judô","voleibol","natação")))) %>% 
+    mutate(Ano=year) %>%
+    plot_athlete_medals_per_year(max_medals,3)+
+    # scale_y_reverse()+
+    facet_grid(cols=vars(Esporte))+theme(strip.text.x=element_text(colour='white',face="bold",size=19))
+  
+  
+  athlete_medals_per_year_df %>% #filter(grepl("Santos",Atleta)) %>% select(Ano,Esporte,Atleta)
+    filter(Esporte %in% c("tiro esportivo")) %>%
+    # filter(Esporte %in% c("ginástica artística")) %>%
+    # filter(Esporte %in% c("futebol")) %>% 
+    full_join(medals_per_year_df %>% mutate(Ano=as.character(Ano)) %>% distinct(Ano),by="Ano") %>% 
+    # group_by(year,medalha_factor,Ano,Medalha,Esporte,medalha_nome) %>% summarise(N=n()) %>% 
+    #head(20)
+    plot_athlete_medals_per_year(max_medals,3)
+  
+  grid.arrange(
+    plot_medals_per_year(df),
+    plot_athlete_medals_per_year(athlete_medals_per_year_df),
+    widths=c(1,4)
+  )
+}
 
 
 # CLEAN UP #################################################
