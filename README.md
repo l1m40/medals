@@ -7,7 +7,7 @@ A participação do Brasil na história dos Jogos Olímpicos é marcada por um c
 
 <br />
 <div align="center">
-    <img src="output/year_medals.png" alt="plot">
+    <p></p><img src="output/year_medals.png" alt="plot"></p>
   Visualização feita com os dados da wikipedia em 
     <a href="https://pt.wikipedia.org/wiki/Lista_de_medalhas_brasileiras_nos_Jogos_Ol%C3%ADmpicos">
       https://pt.wikipedia.org/wiki/Lista_de_medalhas_brasileiras_nos_Jogos_Ol%C3%ADmpicos
