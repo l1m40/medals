@@ -23,4 +23,6 @@ Entre os destaques da trajetória brasileira, o atleta Adhemar Ferreira da Silva
 </div>
 <br />
 
+Embora o quadro de medalhas e o ranking de países sejam populares entre os espectadores e a mídia, o Comitê Olímpico Internacional (COI) não reconhece oficialmente tais classificações. O COI enfatiza que os Jogos Olímpicos são uma celebração do esporte e da competição pacífica entre nações, e não uma disputa entre países. Dessa forma, a contagem de medalhas e o ranking são utilizados principalmente para fins informativos e de entretenimento, sem qualquer peso oficial na organização ou nos princípios dos Jogos Olímpicos.
+
 
