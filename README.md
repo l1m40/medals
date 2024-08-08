@@ -19,7 +19,7 @@ Entre os destaques da trajetória brasileira, o atleta Adhemar Ferreira da Silva
 
 <br />
 <div align="center">
-    <img src="output/athletes_medals.png" alt="plot">
+    <img src="www/athletes_medals_90_degrees.png" alt="plot">
 </div>
 <br />
 
